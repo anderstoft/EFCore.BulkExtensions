@@ -344,7 +344,9 @@ namespace EFCore.BulkExtensions
             foreach (var existingEntity in existingEntities)
             {
                 string uniqueProperyValues = GetUniquePropertyValues(existingEntity, selectByPropertyNames, accessor);
-                existingEntitiesDict.Add(uniqueProperyValues, existingEntity);
+
+                if (!existingEntitiesDict.ContainsKey(uniqueProperyValues))
+                    existingEntitiesDict.Add(uniqueProperyValues, existingEntity);
             }
 
             for (int i = 0; i < NumberOfEntities; i++)
