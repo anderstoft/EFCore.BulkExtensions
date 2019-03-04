@@ -4,6 +4,7 @@ using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace EFCore.BulkExtensions.Tests
 {
@@ -16,8 +17,8 @@ namespace EFCore.BulkExtensions.Tests
 
         public DbSet<Document> Documents { get; set; }
         public DbSet<Person> Persons { get; set; }
-        public DbSet<Instructor> Instructors { get; set; }
         public DbSet<Student> Students { get; set; }
+        public DbSet<Teacher> Teachers { get; set; }
         public DbSet<Info> Infos { get; set; }
         public DbSet<ChangeLog> ChangeLogs { get; set; }
 
@@ -33,9 +34,10 @@ namespace EFCore.BulkExtensions.Tests
             modelBuilder.Entity<UserRole>().HasKey(a => new { a.UserId, a.RoleId });
 
             modelBuilder.Entity<Info>(e => { e.Property(p => p.ConvertedTime).HasConversion((value) => value.AddDays(1), (value) => value.AddDays(-1)); });
+            modelBuilder.Entity<Info>().Property(e => e.InfoType).HasConversion(new EnumToStringConverter<InfoType>());
 
             modelBuilder.Entity<Document>().Property(p => p.ContentLength).HasComputedColumnSql($"(CONVERT([int], len([{nameof(Document.Content)}])))");
-
+            
             // [Timestamp] alternative:
             //modelBuilder.Entity<Document>().Property(x => x.RowVersion).HasColumnType("timestamp").ValueGeneratedOnAddOrUpdate().HasConversion(new NumberToBytesConverter<ulong>()).IsConcurrencyToken();
 
@@ -118,14 +120,14 @@ namespace EFCore.BulkExtensions.Tests
         public string Name { get; set; }
     }
 
-    public class Instructor : Person
-    {
-        public string Class { get; set; }
-    }
-
     public class Student : Person
     {
         public string Subject { get; set; }
+    }
+
+    public class Teacher : Person
+    {
+        public string Class { get; set; }
     }
 
     // For testing Computed Columns
@@ -144,6 +146,12 @@ namespace EFCore.BulkExtensions.Tests
         public int ContentLength { get; set; }
     }
 
+    public enum InfoType
+    {
+        InfoTypeA,
+        InfoTypeB
+    }
+
     // For testring ValueConversion
     public class Info
     {
@@ -152,6 +160,8 @@ namespace EFCore.BulkExtensions.Tests
         public string Message { get; set; }
 
         public DateTime ConvertedTime { get; set; }
+
+        public InfoType InfoType { get; set; }
     }
 
     // For testing OwnedTypes

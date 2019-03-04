@@ -100,6 +100,7 @@ namespace EFCore.BulkExtensions
                 if (isDifferentFromDefault || (updateColumns != null && updateColumns.Contains(propertyName)))
                 {
                     sql += $"[{columnName}] = @{columnName}, ";
+                    propertyUpdateValue = propertyUpdateValue ?? DBNull.Value;
                     parameters.Add(new SqlParameter($"@{columnName}", propertyUpdateValue));
                 }
             }
@@ -111,6 +112,13 @@ namespace EFCore.BulkExtensions
             return $"SET {sql}";
         }
 
+        /// <summary>
+        /// Recursive analytic expression 
+        /// </summary>
+        /// <param name="tableAlias"></param>
+        /// <param name="expression"></param>
+        /// <param name="sqlColumns"></param>
+        /// <param name="sqlParameters"></param>
         /// <summary>
         /// Recursive analytic expression 
         /// </summary>
@@ -140,38 +148,34 @@ namespace EFCore.BulkExtensions
                     }
                 }
             }
-
-            if (expression is MemberExpression memberExpression)
+            else if (expression is MemberExpression memberExpression && memberExpression.Expression is ParameterExpression)
             {
                 if (columnNameValueDict.TryGetValue(memberExpression.Member.Name, out string value))
                     sqlColumns.Append($" [{tableAlias}].[{value}]");
                 else
                     sqlColumns.Append($" [{tableAlias}].[{memberExpression.Member.Name}]");
             }
-
-            if (expression is ConstantExpression constantExpression)
+            else if (expression is ConstantExpression constantExpression)
             {
                 var parmName = $"param_{sqlParameters.Count}";
                 sqlParameters.Add(new SqlParameter(parmName, constantExpression.Value));
                 sqlColumns.Append($" @{parmName}");
             }
-
-            if (expression is UnaryExpression unaryExpression)
+            else if (expression is UnaryExpression unaryExpression)
             {
                 switch (unaryExpression.NodeType)
                 {
                     case ExpressionType.Convert:
-                        CreateUpdateBody(columnNameValueDict,tableAlias, unaryExpression.Operand, ref sqlColumns, ref sqlParameters);
+                        CreateUpdateBody(columnNameValueDict, tableAlias, unaryExpression.Operand, ref sqlColumns, ref sqlParameters);
                         break;
                     case ExpressionType.Not:
                         sqlColumns.Append(" ~");//this way only for SQL Server 
-                        CreateUpdateBody(columnNameValueDict,tableAlias, unaryExpression.Operand, ref sqlColumns, ref sqlParameters);
+                        CreateUpdateBody(columnNameValueDict, tableAlias, unaryExpression.Operand, ref sqlColumns, ref sqlParameters);
                         break;
                     default: break;
                 }
             }
-
-            if (expression is BinaryExpression binaryExpression)
+            else if (expression is BinaryExpression binaryExpression)
             {
                 CreateUpdateBody(columnNameValueDict, tableAlias, binaryExpression.Left, ref sqlColumns, ref sqlParameters);
 
@@ -194,7 +198,15 @@ namespace EFCore.BulkExtensions
 
                 CreateUpdateBody(columnNameValueDict, tableAlias, binaryExpression.Right, ref sqlColumns, ref sqlParameters);
             }
+            else
+            {
+                var value = Expression.Lambda(expression).Compile().DynamicInvoke();
+                var parmName = $"param_{sqlParameters.Count}";
+                sqlParameters.Add(new SqlParameter(parmName, value));
+                sqlColumns.Append($" @{parmName}");
+            }
         }
+
 
         public static DbContext GetDbContext(IQueryable query)
         {

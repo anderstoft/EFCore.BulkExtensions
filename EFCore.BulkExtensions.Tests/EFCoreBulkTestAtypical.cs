@@ -77,6 +77,11 @@ namespace EFCore.BulkExtensions.Tests
         {
             using (var context = new TestContext(ContextUtil.GetOptions()))
             {
+                context.BulkDelete(context.Students.ToList());
+            }
+
+            using (var context = new TestContext(ContextUtil.GetOptions()))
+            {
                 var entities = new List<Student>();
                 for (int i = 1; i <= EntitiesNumber; i++)
                 {
@@ -87,20 +92,46 @@ namespace EFCore.BulkExtensions.Tests
                     });
                 }
                 context.Students.AddRange(entities); // adding to Context so that Shadow property 'Discriminator' gets set
+
                 context.BulkInsert(entities);
             }
+
+            using (var context = new TestContext(ContextUtil.GetOptions()))
+            {
+                var entities = new List<Student>();
+                for (int i = 1; i <= EntitiesNumber / 2; i += 2)
+                {
+                    entities.Add(new Student
+                    {
+                        Name = "name " + i,
+                        Subject = "Math Upd"
+                    });
+                }
+                context.Students.AddRange(entities); // adding to Context so that Shadow property 'Discriminator' gets set
+
+                context.BulkInsertOrUpdate(entities, new BulkConfig
+                {
+                    UpdateByProperties = new List<string> { nameof(Student.Name) },
+                    PropertiesToExclude = new List<string> { nameof(Student.PersonId) },
+                });
+            }
+
             using (var context = new TestContext(ContextUtil.GetOptions()))
             {
                 var entities = context.Students.ToList();
                 Assert.Equal(EntitiesNumber, entities.Count());
-                context.BulkDelete(entities);
             }
         }
 
         [Fact]
         private void InsertWithValueConversion()
         {
-            var dateTime = new DateTime(2018, 1, 1);
+            var dateTime = DateTime.Today;
+
+            using (var context = new TestContext(ContextUtil.GetOptions()))
+            {
+                context.BulkDelete(context.Infos);
+            }
 
             using (var context = new TestContext(ContextUtil.GetOptions()))
             {
@@ -110,7 +141,8 @@ namespace EFCore.BulkExtensions.Tests
                     entities.Add(new Info
                     {
                         Message = "Msg " + i,
-                        ConvertedTime = dateTime
+                        ConvertedTime = dateTime,
+                        InfoType = InfoType.InfoTypeA
                     });
                 }
                 context.BulkInsert(entities);
@@ -137,8 +169,6 @@ namespace EFCore.BulkExtensions.Tests
                     };
                     Assert.Equal(row.ConvertedTime, dateTime.AddDays(1));
                 }
-
-                context.BulkDelete(entities);
             }
         }
 

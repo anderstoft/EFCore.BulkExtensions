@@ -23,7 +23,7 @@ namespace EFCore.BulkExtensions.Tests
                 var lastItem = context.Items.LastOrDefault();
                 Assert.Equal(500, lastItem.ItemId);
                 Assert.Equal("Updated", lastItem.Description);
-                Assert.Equal(100, lastItem.Quantity);
+                Assert.Equal(1.5m, lastItem.Price);
             }
         }
 
@@ -48,7 +48,9 @@ namespace EFCore.BulkExtensions.Tests
                 var query = context.Items.Where(a => a.ItemId <= 500 && a.Price >= 0);
                 query.BatchUpdate(new Item { Description = "Updated", Price = 1.5m }/*, updateColumns*/);
 
-                query.BatchUpdate(a => new Item { Quantity = a.Quantity + 100 }); // example of BatchUpdate value Increment/Decrement
+                var incrementStep = 100;
+                query.BatchUpdate(a => new Item { Quantity = a.Quantity + incrementStep }); // example of BatchUpdate Increment/Decrement value in variable
+                //query.BatchUpdate(a => new Item { Quantity = a.Quantity + 100 }); // example direct value without variable
             }
         }
 
@@ -69,8 +71,8 @@ namespace EFCore.BulkExtensions.Tests
                 {
                     var entity = new Item
                     {
-                        Name = "name " + i,
-                        Description = "info " + Guid.NewGuid().ToString().Substring(0, 3),
+                        Name = "name " + Guid.NewGuid().ToString().Substring(0, 3),
+                        Description = "info",
                         Quantity = i % 10,
                         Price = i / (i % 5 + 1),
                         TimeUpdated = DateTime.Now,
@@ -79,7 +81,7 @@ namespace EFCore.BulkExtensions.Tests
                     entities.Add(entity);
                 }
 
-                context.Items.AddRange(entities);
+                context.Items.AddRange(entities); // does not guarantee insert order
                 context.SaveChanges();
             }
         }
