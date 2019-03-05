@@ -423,7 +423,7 @@ namespace EFCore.BulkExtensions
             List<string> selectByPropertyNames = PropertyColumnNamesDict.Keys.Where(a => PrimaryKeys.Contains(a)).ToList();
 
             var accessor = TypeAccessor.Create(typeof(T), true);
-            Dictionary<string, T> existingEntitiesDict = new Dictionary<string, T>();
+            Dictionary<string, T> existingEntitiesDict = new Dictionary<string, T>(StringComparer.OrdinalIgnoreCase);
             foreach (var existingEntity in existingEntities)
             {
                 string uniqueProperyValues = GetUniquePropertyValues(existingEntity, selectByPropertyNames, accessor);
